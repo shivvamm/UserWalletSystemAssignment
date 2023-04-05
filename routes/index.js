@@ -21,7 +21,7 @@ const auth = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, 'mysecretkey');
+    const decoded = jwt.verify(token, 'sdfgyikgjkury67897oiki8i73576hbrh5');
     req.user = decoded;
     next();
   } catch (err) {
@@ -34,51 +34,33 @@ router.get('/', auth, async (req, res) => {
  try {
     // Find user by ID
     const user = await User.findById(req.user.userId);
-    const transaction = await Transaction.findOne({ email: user.email });
+    const transactions = await Transaction.find({ $or: [{ sender_id: user._id }, { receiver_id: user._id }] }).sort({ created_at: 'desc' });
+   
     if (!user) {
       return res.status(404).send({ error: 'User not found.' });
     }
     // Send response with user profile information
-    res.render('index', { user,transaction});
+    res.render('index', {user,transactions});
   } catch (err) {
+    console.log(err);
     res.status(500).send();
   }
 });
 
 
 
-router.post('/', auth, async (req, res) => {
-   try {
-    // Clear the token cookie
-    res.cookie('token', '', { maxAge: 0 });
-
-    // Remove the auth token for the user
-    req.user.tokens = req.user.tokens.filter((token) => {
-      return token.token !== req.token
-    })
-    await req.user.save()
-
-    // Redirect the user to the login page
-    res.redirect('/')
-  } catch (err) {
-     console.log(err);
-    res.status(500).send();
-  }
-})
 
 
 router.post('/addmoney', auth, async (req, res) => {
   // Find user by user ID from JWT token
   const user = await User.findById(req.user.userId);
   try {
-    console.log(user._id);
     if (!user) {
       return res.status(404).send({ error: 'User not found.' });
     }
 
     // Check if passcode is correct
     const passcode = await bcrypt.compare(req.body.passcode, user.passcode);
-    console.log(user.passcode)
     if (!passcode) {
       return res.status(401).send({ error: 'Invalid passcode.' });
     }
@@ -102,7 +84,7 @@ router.post('/addmoney', auth, async (req, res) => {
     await transaction.save();
 
     const message= 'Money added successfully';
-    res.redirect(200,'/index');
+    res.redirect('/index');
   } catch (err) {
     // Add transaction record if transaction failed
     const transaction = new Transaction({
@@ -139,7 +121,6 @@ router.post('/transfer', auth, async (req, res) => {
 
     // Check if passcode is correct
     const passcode = await bcrypt.compare(req.body.passcode, sender.passcode);
-    console.log(sender.passcode)
     if (!passcode) {
       return res.status(401).send({ error: 'Invalid passcode.' });
     }
@@ -167,7 +148,7 @@ router.post('/transfer', auth, async (req, res) => {
     await receiver.save();
 
     const message= 'Money added successfully';
-    res.redirect(200,'/index');
+    res.redirect('/index');
   } catch (err) {
     // Add transaction record if transaction failed
     const transaction = new Transaction({
@@ -181,5 +162,26 @@ router.post('/transfer', auth, async (req, res) => {
     res.status(500).send({ error: 'Internal server error.' });
   }
 });
+
+
+router.post('/logout', auth, async (req, res) => {
+  try {
+    // Clear the token cookie
+    res.cookie('token', '', { maxAge: 0 });
+
+    // Remove the auth token for the user
+    req.user.tokens = req.user.tokens.filter((token) => {
+      return token.token !== req.token
+    })
+    await req.user.save()
+
+    // Redirect the user to the login page
+    res.redirect('/')
+  } catch (err) {
+    console.log(err);
+    res.status(500).send();
+  }
+})
+
 
 module.exports = router;
