@@ -34,11 +34,12 @@ router.get('/', auth, async (req, res) => {
  try {
     // Find user by ID
     const user = await User.findById(req.user.userId);
+    const transaction = await Transaction.findOne({ email: user.email });
     if (!user) {
       return res.status(404).send({ error: 'User not found.' });
     }
     // Send response with user profile information
-    res.render('index', { user });
+    res.render('index', { user,transaction});
   } catch (err) {
     res.status(500).send();
   }
@@ -64,5 +65,121 @@ router.post('/', auth, async (req, res) => {
     res.status(500).send();
   }
 })
+
+
+router.post('/addmoney', auth, async (req, res) => {
+  // Find user by user ID from JWT token
+  const user = await User.findById(req.user.userId);
+  try {
+    console.log(user._id);
+    if (!user) {
+      return res.status(404).send({ error: 'User not found.' });
+    }
+
+    // Check if passcode is correct
+    const passcode = await bcrypt.compare(req.body.passcode, user.passcode);
+    console.log(user.passcode)
+    if (!passcode) {
+      return res.status(401).send({ error: 'Invalid passcode.' });
+    }
+
+    // Update user balance
+    const amount = parseFloat(req.body.amount);
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).send({ error: 'Invalid amount.' });
+    }
+    user.wallet_balance += amount;
+    await user.save();
+
+    // Add transaction record
+    const transaction = new Transaction({
+      sender_id:user._id ,
+      receiver_id: user._id,
+      amount: amount,
+      status: 'Success',
+    });
+    await transaction.save();
+
+    const message= 'Money added successfully';
+    res.redirect(200,'/index');
+  } catch (err) {
+    // Add transaction record if transaction failed
+    const transaction = new Transaction({
+      sender_id: null,
+      receiver_id: user._id,
+      amount: parseFloat(req.body.amount),
+      status: 'Failed',
+    });
+    await transaction.save();
+
+    res.status(500).send({ error: 'Internal server error.' });
+  }
+});
+
+
+router.post('/transfer', auth, async (req, res) => {
+  try {
+    // Find sender by user ID from JWT token
+    const sender = await User.findById(req.user.userId);
+    if (!sender) {
+      return res.status(404).send({ error: 'User not found.' });
+    }
+
+    // Find receiver by email
+    const receiver = await User.findOne({ email: req.body.email });
+    if (!receiver) {
+      return res.status(404).send({ error: 'Receiver not found.' });
+    }
+
+    // Check if sender has enough balance
+    if (sender.wallet_balance < req.body.amount) {
+      return res.status(400).send({ error: 'Insufficient funds.' });
+    }
+
+    // Check if passcode is correct
+    const passcode = await bcrypt.compare(req.body.passcode, sender.passcode);
+    console.log(sender.passcode)
+    if (!passcode) {
+      return res.status(401).send({ error: 'Invalid passcode.' });
+    }
+
+    const amount = parseFloat(req.body.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).send({ error: 'Invalid amount.' });
+    }
+
+    // Add transaction record
+    const transaction = new Transaction({
+      sender_id: sender._id,
+      receiver_id: receiver._id,
+      amount: amount,
+      status: 'Success',
+    });
+    await transaction.save();
+
+    // Update sender balance
+    sender.wallet_balance -= amount;
+    await sender.save();
+
+    // Update receiver balance
+    receiver.wallet_balance += amount;
+    await receiver.save();
+
+    const message= 'Money added successfully';
+    res.redirect(200,'/index');
+  } catch (err) {
+    // Add transaction record if transaction failed
+    const transaction = new Transaction({
+      sender_id: sender._id,
+      receiver_id: receiver._id,
+      amount: req.body.amount,
+      status: 'Failed',
+    });
+    await transaction.save();
+
+    res.status(500).send({ error: 'Internal server error.' });
+  }
+});
 
 module.exports = router;
