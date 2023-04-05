@@ -30,18 +30,21 @@ router.post('/', async (req, res) => {
     // Hash password
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(req.body.password, salt);
-
+    const hashedPasscode = await bcrypt.hash(req.body.passcode, salt);
+    
     // Create new user
     const user = new User({
       username:req.body.username,
       email: req.body.email,
       password: hashedPassword,
+      passcode: hashedPasscode,
     });
     await user.save();
 
     // Generate JWT token
     const token = jwt.sign({ userId: user._id }, 'mysecretkey');
-
+    console.log(token);
+    console.log(user._id)
     // Send response with JWT token
     res.cookie('token', token, { httpOnly: true });
     res.redirect('/index');
