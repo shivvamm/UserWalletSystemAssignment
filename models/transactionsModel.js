@@ -8,6 +8,6 @@ const transactionSchema = new mongoose.Schema({
   created_at: { type: Date, default: Date.now }
 });
 
-const Transaction = mongoose.model('Transaction', transactionSchema);
+const Transaction = mongoose.model('Transactions', transactionSchema);
 
 module.exports = Transaction;
