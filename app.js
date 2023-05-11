@@ -4,7 +4,7 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 var MongoClient = require('mongodb').MongoClient;
-var url = "mongodb+srv://admin:1234@cluster0.26qsxtx.mongodb.net/?retryWrites=true&w=majority";
+var url = "";
 var winston = require('winston');
 var { format } = require('logform');
 const { combine, timestamp, label, printf } = format;
@@ -15,7 +15,7 @@ const { v4: uuidv4 } = require('uuid');
 const mongoose = require('mongoose');
 
 
-mongoose.connect('mongodb+srv://admin:1234@cluster0.26qsxtx.mongodb.net/?retryWrites=true&w=majority', {
+mongoose.connect('', {
   useNewUrlParser: true,
   useUnifiedTopology: true,
 })
